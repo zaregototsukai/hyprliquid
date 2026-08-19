@@ -2,9 +2,9 @@
 name = "hyprliquid"
 authors = ["zaregototsukai"]
 commit_pins = [
-    ["36b2e0cfe0c6094dbc47bd42a437431315bb3087", "547beff52fd263faf9a5fd2fced1ba24b4cdc0a8"], # v0.56.0
-    ["5c9377c15f85c50648f35ca5a213754f95b93ca0", "547beff52fd263faf9a5fd2fced1ba24b4cdc0a8"], # v0.56.1
-    ["efb50993780079460b0cbed1363e2166a2de1d9f", "547beff52fd263faf9a5fd2fced1ba24b4cdc0a8"]  # v0.56.2
+    ["36b2e0cfe0c6094dbc47bd42a437431315bb3087", "39c4aa6549f5caaac3d98ab5982d42b03bc80c58"], # v0.56.0
+    ["5c9377c15f85c50648f35ca5a213754f95b93ca0", "39c4aa6549f5caaac3d98ab5982d42b03bc80c58"], # v0.56.1
+    ["efb50993780079460b0cbed1363e2166a2de1d9f", "39c4aa6549f5caaac3d98ab5982d42b03bc80c58"]  # v0.56.2
 ]
 
 [hyprliquid]
