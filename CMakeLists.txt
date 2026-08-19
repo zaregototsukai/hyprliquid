@@ -28,6 +28,7 @@ if (HYPRWAYLAND_SCANNER)
         VERBATIM)
 else()
     set(PROTOCOL_SRC_PATH ${CMAKE_SOURCE_DIR}/generated/Protocols)
+    set(PROTOCOL_CPP ${PROTOCOL_SRC_PATH}/background-share-unstable-v1.cpp)
 endif()
 
 add_library(hyprliquid MODULE
