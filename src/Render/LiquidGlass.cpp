@@ -20,26 +20,28 @@ void RenderLiquidGlass(IFramebuffer& fb, const SP<ITexture>& texture, const CBox
     static auto HIGHLIGHT_STYLE  = RuleOrConfigValue<Config::INTEGER>(ConfigManager::ConfigType::HIGHLIGHT_STYLE);
 
     const float scale = g_pHyprRenderer->m_renderData.pMonitor->m_scale;
+    const float rounding_power = data.roundingPower;
 
     int corner_radius = CORNER_RADIUS[client_context];
     if (corner_radius < 0)
         corner_radius = data.round;
     else
-        corner_radius *= scale;
+        corner_radius *= scale * rounding_power / 2;
+    if (data.round > 0 && corner_radius > data.round)
+        corner_radius = data.round;
 
     int z_radius = Z_RADIUS[client_context];
     if (z_radius < 0)
         z_radius = corner_radius;
     else
-        z_radius *= scale;
-
+        z_radius *= scale * rounding_power / 2;
     if (z_radius > corner_radius)
         z_radius = corner_radius;
 
-    auto  tint_color       = TINT_COLOR[client_context];
-    float brightness       = BRIGHTNESS[client_context];
-    int   highlight_style  = HIGHLIGHT_STYLE[client_context];
-    bool  glass_dispersion = GLASS_DISPERSION[client_context];
+    const auto  tint_color       = TINT_COLOR[client_context];
+    const float brightness       = BRIGHTNESS[client_context];
+    const int   highlight_style  = HIGHLIGHT_STYLE[client_context];
+    const bool  glass_dispersion = GLASS_DISPERSION[client_context];
 
     const auto& size = fb.m_size;
     const auto  shader = Render::GL::g_pHyprOpenGL->useShader(g_LiquidGlassShader).lock();
@@ -59,6 +61,7 @@ void RenderLiquidGlass(IFramebuffer& fb, const SP<ITexture>& texture, const CBox
 
     shader->setUniformFloat4(SHADER_TINT, tint_color.r, tint_color.g, tint_color.b, tint_color.a);
     shader->setUniformFloat (SHADER_BRIGHTNESS, brightness);
+    shader->setUniformFloat (SHADER_ROUNDING_POWER, rounding_power);
 
     if (vdf_map)
     {

@@ -208,6 +208,7 @@ namespace Shaders
         m_uniformLocations[SHADER_FULL_SIZE]               = glGetUniformLocation(program, "Fullsize");
         m_uniformLocations[SHADER_TINT]                    = glGetUniformLocation(program, "TintColor");
         m_uniformLocations[SHADER_BRIGHTNESS]              = glGetUniformLocation(program, "Brightness");
+        m_uniformLocations[SHADER_ROUNDING_POWER]          = glGetUniformLocation(program, "RoundingPower");
         m_uniformLocations[CUSTOM_SHADER_TEXTURE_SCALE]    = glGetUniformLocation(program, "TextureScale");
         m_uniformLocations[CUSTOM_SHADER_HAS_VDF_MAP]      = glGetUniformLocation(program, "HasVDFMap");
         m_uniformLocations[CUSTOM_SHADER_VDF_MAP]          = glGetUniformLocation(program, "VDFMap");
