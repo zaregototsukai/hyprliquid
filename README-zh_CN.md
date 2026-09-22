@@ -288,6 +288,7 @@ layerrule {
 | `highlight_style` | 全局回退 | `int` | `0` | `0`～`4` | 选择 Liquid Glass 高光样式：<br> `0`：关闭。<br> `1`：全部边缘。<br> `2`：左上与右下边缘。<br> `3`：OS 26 风格高光。<br> `4`：OS 27 风格高光。 |
 | `color_scheme` | 全局回退 | 全局：`int`；规则：`string` | `0`（light） | `dark`、`light`、`follow_system`，或 `0`～`3` | 选择 Acrylic 和 Mica 的配色方案。`follow_system` 需要开启 `watch_system_color_scheme = true`。 |
 | `rounding_lua` | 仅 Lua 配置与窗口规则 | `int` | `-1` | `-1` 或非负逻辑像素值 | 通过 Lua 配置时覆盖窗口圆角。Hyprland 的 Lua API 将常规 `rounding` 规则上限限制为 `20`，如需更大圆角请使用 `rounding_lua`。此选项在旧版 Hyprlang 配置及 layer surface 上无效——这些场景请使用常规 `rounding` 设置。 |
+| `force_full_damage` | 全局回退 | `bool` | `false` | 布尔值 | 让材质渲染覆盖整个表面，而不是只渲染受损区域。如果遇到渲染问题，可以开启此项。 |
 
 ### 什么是 VDF 贴图？
 

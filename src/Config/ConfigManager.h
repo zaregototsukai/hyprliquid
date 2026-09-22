@@ -34,6 +34,7 @@ public:
         COLOR_SCHEME,
         AERO_REFLECTION_MAP_PATH,
         ROUNDING_LUA,
+        FORCE_FULL_DAMAGE,
 
         CONFIG_LAST
     };
@@ -70,6 +71,7 @@ public:
         "plugin:hyprliquid:color_scheme",
         "plugin:hyprliquid:aero_reflection_map_path",
         "plugin:hyprliquid:rounding_lua",
+        "plugin:hyprliquid:force_full_damage",
     };
 
     inline static constexpr std::array<DataType, ConfigType::CONFIG_LAST> ConfigValueTypes
@@ -94,7 +96,8 @@ public:
         DataType::CONFIGDATATYPE_INT,
         DataType::CONFIGDATATYPE_INT,
         DataType::CONFIGDATATYPE_STR,
-        DataType::CONFIGDATATYPE_INT
+        DataType::CONFIGDATATYPE_INT,
+        DataType::CONFIGDATATYPE_BOOL
     };
 
     inline static std::array<SP<Config::Values::IValue>, ConfigType::CONFIG_LAST> ConfigValues;

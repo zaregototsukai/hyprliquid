@@ -76,6 +76,7 @@ void RenderLiquidGlass(IFramebuffer& fb, const SP<ITexture>& texture, const CBox
     }
     else
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_HAS_VDF_MAP, false);
+
     RenderShader(fb, texture, shader, data.damage);
     if (vdf_map)
         vdf_map->unbind();

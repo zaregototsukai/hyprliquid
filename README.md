@@ -288,6 +288,7 @@ Settings with a **Global fallback** scope may also be set globally. For `color_s
 | `highlight_style` | Global fallback | `int` | `0` | `0` through `4` | Selects the Liquid Glass highlight treatment: <br> `0`: disabled. <br> `1`: all edges. <br> `2`: top-left and bottom-right edges. <br> `3`: OS 26-style highlight. <br> `4`: OS 27-style highlight. |
 | `color_scheme` | Global fallback | `int` globally; `string` in rules | `0` (`light`) | `dark`, `light`, `follow_system` or `0` through `3` | Chooses the Acrylic and Mica palette. `follow_system` requires `watch_system_color_scheme = true`. |
 | `rounding_lua` | Lua configuration and window rules only | `int` | `-1` | `-1` or a non-negative logical pixel value | Overrides a window's rounding when configuring via Lua. Hyprland's Lua API caps the regular `rounding` rule at `20`; use `rounding_lua` for larger values. Has no effect in legacy Hyprlang configuration or on layer surfaces — use the normal `rounding` setting there instead. |
+| `force_full_damage` | Global fallback | `bool` | `false` | Boolean | Renders the material over the whole surface instead of only the damaged region. Enable this if you run into rendering problems. |
 
 ### What is a VDF map?
 

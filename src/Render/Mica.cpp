@@ -9,7 +9,7 @@
 
 using namespace Shaders;
 
-void RenderMica(IFramebuffer& fb, const SP<ITexture>& mask, const CBox &box,const Render::GL::CHyprOpenGLImpl::STextureRenderData &data, const bool alt, const SP<ClientContext>& client_context)
+void RenderMica(IFramebuffer& fb, const SP<ITexture>& mask, const CBox& box,const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const bool alt, const SP<ClientContext>& client_context)
 {
     using Render::GL::CGLFramebuffer;
 
@@ -78,7 +78,7 @@ void RenderMica(IFramebuffer& fb, const SP<ITexture>& mask, const CBox &box,cons
     auto monitor_context = MonitorContext::GetContext(g_pHyprRenderer->m_renderData.pMonitor.get());
     auto blurred_background = monitor_context->GetBlurredBackground();
 
-    RenderShader(fb, blurred_background, shader);
+    RenderShader(fb, blurred_background, shader, data.damage);
     if (mask)
         mask->unbind();
 }

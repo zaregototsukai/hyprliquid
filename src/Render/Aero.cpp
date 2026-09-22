@@ -9,7 +9,7 @@
 
 using namespace Shaders;
 
-void RenderAero(IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture>& mask, const CBox &box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const SP<ClientContext>& client_context)
+void RenderAero(IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture>& mask, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const SP<ClientContext>& client_context)
 {
     using Render::GL::CGLFramebuffer;
 
@@ -70,7 +70,6 @@ void RenderAero(IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture
         shader->setUniformFloat2((eShaderUniform)CUSTOM_SHADER_TEXTURE_SCALE, 0.0, 0.0);
 
     RenderShader(fb, tex, shader, data.damage);
-
     if (reflection_map)
         reflection_map->unbind();
     if (mask)

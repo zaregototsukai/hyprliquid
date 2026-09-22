@@ -3,6 +3,7 @@
 #include "Render/Render.h"
 #include "Config/ConfigManager.h"
 #include "Config/RuleOrDefaultValue.hpp"
+#include "Config/RuleOrConfigValue.hpp"
 #include "Shaders/Shaders.h"
 #include "Utils/BackgroundManager.h"
 #include "Context/MonitorContext.h"
@@ -101,6 +102,7 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
 
     static auto VDF_MAP_DEBUG_MODE = RuleOrDefaultValue<Config::INTEGER>(ConfigManager::ConfigType::VDF_MAP_DEBUG_MODE, 0);
     static auto EFFECT             = RuleOrDefaultValue<Config::INTEGER>(ConfigManager::ConfigType::EFFECT, 0);
+    static auto FORCE_FULL_DAMAGE  = RuleOrConfigValue<Config::BOOL>(ConfigManager::ConfigType::FORCE_FULL_DAMAGE);
 
     if (!InCSurfacePassElementDraw)
         return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
@@ -122,6 +124,12 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
         return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
 
     int vdf_map_debug_mode = VDF_MAP_DEBUG_MODE[client_context];
+
+    CRegion _damage{box};
+    auto pdata = const_cast<Render::GL::CHyprOpenGLImpl::STextureRenderData*>(&data);
+
+    if (FORCE_FULL_DAMAGE[client_context])
+        pdata->damage = &_damage;
 
     auto fb = render_data.pMonitor->resources()->getUnusedWorkBuffer();
     if (InCHyprOpenGLImplRenderTextureWithBlurInternal)
@@ -204,7 +212,6 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
             break;
     }
 
-    auto pdata = const_cast<Render::GL::CHyprOpenGLImpl::STextureRenderData*>(&data);
     auto uv_topleft     = pdata->primarySurfaceUVTopLeft;
     auto uv_bottomright = pdata->primarySurfaceUVBottomRight;
 

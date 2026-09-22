@@ -191,7 +191,8 @@ void ConfigManager::Init(HANDLE handle)
         makeShared<Config::Values::CIntValue>  (ConfigNames[ConfigType::HIGHLIGHT_STYLE].data(),            "", 0),
         makeShared<Config::Values::CIntValue>  (ConfigNames[ConfigType::COLOR_SCHEME].data(),               "", 0),
         makeShared<Config::Values::String>     (ConfigNames[ConfigType::AERO_REFLECTION_MAP_PATH].data(),   "", ""),
-        makeShared<Config::Values::CIntValue>  (ConfigNames[ConfigType::ROUNDING_LUA].data(),               "", -1)
+        makeShared<Config::Values::CIntValue>  (ConfigNames[ConfigType::ROUNDING_LUA].data(),               "", -1),
+        makeShared<Config::Values::CBoolValue> (ConfigNames[ConfigType::FORCE_FULL_DAMAGE].data(),          "", false)
     };
 
     for (const auto& cv : ConfigValues)
