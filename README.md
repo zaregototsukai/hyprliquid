@@ -45,6 +45,108 @@ Load the installed module:
 hyprctl plugin load /usr/lib/libhyprliquid.so
 ```
 
+### NixOS
+
+The flake provides a package and a Home Manager module. Add the input:
+
+```nix
+inputs.hyprliquid.url = "github:zaregototsukai/hyprliquid";
+```
+
+With Home Manager, import the module and enable it — it registers the plugin with Hyprland for you:
+
+```nix
+imports = [ hyprliquid.homeManagerModules.default ];
+
+wayland.windowManager.hyprland.hyprliquid.enable = true;
+```
+
+Without Home Manager, load `<hyprliquid>/lib/libhyprliquid.so` yourself. See [Load at startup](#load-at-startup).
+
+<details>
+<summary>Full flake example</summary>
+
+```nix
+{
+    inputs =
+    {
+        nixpkgs.url = "github:NixOS/nixpkgs";
+        nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+        hyprland.url = "github:hyprwm/Hyprland";
+        hyprliquid =
+        {
+            url = "github:zaregototsukai/hyprliquid";
+            inputs.hyprland.follows = "hyprland";
+        };
+
+        # If you use Home Manager
+        home-manager =
+        {
+            url = "github:nix-community/home-manager";
+            inputs.nixpkgs.follows = "nixpkgs";
+        };
+    };
+
+    outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, hyprland, hyprliquid, ... } @inputs:
+    let
+        system = "x86_64-linux";
+        pkgs-unstable = nixpkgs-unstable.legacyPackages.${system};
+    in
+    {
+        nixosConfigurations.nixos = nixpkgs.lib.nixosSystem
+        {
+            inherit system;
+            modules =
+            [
+                ./configuration.nix
+                hyprland.nixosModules.default
+                {
+                    programs.hyprland =
+                    {
+                        enable = true;
+                        withUWSM = true;
+                        package = pkgs-unstable.hyprland;
+                    };
+                }
+
+                # If you don't use Home Manager
+                {
+                    environment.variables.HYPRLIQUID_DIR = "${hyprliquid.packages.${system}.default}";
+                }
+
+                # If you use Home Manager
+                home-manager.nixosModules.home-manager
+                {
+                    home-manager =
+                    {
+                        useGlobalPkgs = true;
+                        backupFileExtension = "backup";
+                        users.yourname =
+                        {
+                            imports =
+                            [
+                                hyprliquid.homeManagerModules.default
+                                ./home.nix
+                            ];
+                        };
+                    };
+                }
+            ];
+            specialArgs =
+            {
+                pkgs-unstable = import nixpkgs-unstable
+                {
+                    inherit system;
+                    config.allowUnfree = true;
+                };
+            };
+        };
+    };
+}
+```
+
+</details>
+
 ### Manual build
 
 Install `cmake`, `stb`, Wayland and systemd development files, and the Hyprland development files provided by your distribution. `hyprwayland-scanner` is optional: when it is unavailable, the build uses the pre-generated protocol sources included in the repository.
@@ -67,6 +169,17 @@ hyprctl plugin load /usr/lib/libhyprliquid.so
 ### Load at startup
 
 Use one of the following methods to load the plugin when Hyprland starts.
+
+#### NixOS
+
+With Home Manager, `wayland.windowManager.hyprland.hyprliquid.enable = true` is all that is needed — the module registers the plugin for you.
+
+Without Home Manager, load the plugin from the store path of the package (`HYPRLIQUID_DIR` in the flake example above):
+
+```lua
+-- ~/.config/hypr/hyprland.lua
+hl.plugin.load(os.getenv("HYPRLIQUID_DIR") .. "/lib/libhyprliquid.so");
+```
 
 #### Lua
 

@@ -10,7 +10,7 @@ clean:
 	rm -rf build
 
 install:
-	cmake --install build/Release
+	cmake --install build/Release --prefix /usr
 
 uninstall:
 	rm /usr/lib/libhyprliquid.so

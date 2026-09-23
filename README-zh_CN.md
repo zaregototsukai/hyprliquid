@@ -45,6 +45,108 @@ yay -S hyprliquid
 hyprctl plugin load /usr/lib/libhyprliquid.so
 ```
 
+### NixOS
+
+flake 提供软件包与 Home Manager 模块。添加以下 input：
+
+```nix
+inputs.hyprliquid.url = "github:zaregototsukai/hyprliquid";
+```
+
+使用 Home Manager 时，导入模块并启用即可，模块会自动为 Hyprland 注册插件：
+
+```nix
+imports = [ hyprliquid.homeManagerModules.default ];
+
+wayland.windowManager.hyprland.hyprliquid.enable = true;
+```
+
+不使用 Home Manager 时，请自行加载 `<hyprliquid>/lib/libhyprliquid.so`。参见[启动时自动加载](#启动时自动加载)。
+
+<details>
+<summary>完整 flake 示例</summary>
+
+```nix
+{
+    inputs =
+    {
+        nixpkgs.url = "github:NixOS/nixpkgs";
+        nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+        hyprland.url = "github:hyprwm/Hyprland";
+        hyprliquid =
+        {
+            url = "github:zaregototsukai/hyprliquid";
+            inputs.hyprland.follows = "hyprland";
+        };
+
+        # 使用 Home Manager 时
+        home-manager =
+        {
+            url = "github:nix-community/home-manager";
+            inputs.nixpkgs.follows = "nixpkgs";
+        };
+    };
+
+    outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, hyprland, hyprliquid, ... } @inputs:
+    let
+        system = "x86_64-linux";
+        pkgs-unstable = nixpkgs-unstable.legacyPackages.${system};
+    in
+    {
+        nixosConfigurations.nixos = nixpkgs.lib.nixosSystem
+        {
+            inherit system;
+            modules =
+            [
+                ./configuration.nix
+                hyprland.nixosModules.default
+                {
+                    programs.hyprland =
+                    {
+                        enable = true;
+                        withUWSM = true;
+                        package = pkgs-unstable.hyprland;
+                    };
+                }
+
+                # 不使用 Home Manager 时
+                {
+                    environment.variables.HYPRLIQUID_DIR = "${hyprliquid.packages.${system}.default}";
+                }
+
+                # 使用 Home Manager 时
+                home-manager.nixosModules.home-manager
+                {
+                    home-manager =
+                    {
+                        useGlobalPkgs = true;
+                        backupFileExtension = "backup";
+                        users.yourname =
+                        {
+                            imports =
+                            [
+                                hyprliquid.homeManagerModules.default
+                                ./home.nix
+                            ];
+                        };
+                    };
+                }
+            ];
+            specialArgs =
+            {
+                pkgs-unstable = import nixpkgs-unstable
+                {
+                    inherit system;
+                    config.allowUnfree = true;
+                };
+            };
+        };
+    };
+}
+```
+
+</details>
+
 ### 手动构建
 
 请安装所用发行版提供的 `cmake`、`stb`、Wayland、systemd 以及 Hyprland 开发文件。`hyprwayland-scanner` 为可选依赖：若不可用，构建系统将使用仓库中预生成的协议源码。
@@ -67,6 +169,17 @@ hyprctl plugin load /usr/lib/libhyprliquid.so
 ### 启动时自动加载
 
 使用以下任一方式，在 Hyprland 启动时自动加载插件。
+
+#### NixOS
+
+使用 Home Manager 时，只需设置 `wayland.windowManager.hyprland.hyprliquid.enable = true`，模块会自动注册插件。
+
+不使用 Home Manager 时，请从软件包的 store 路径加载插件（即上方 flake 示例中的 `HYPRLIQUID_DIR`）：
+
+```lua
+-- ~/.config/hypr/hyprland.lua
+hl.plugin.load(os.getenv("HYPRLIQUID_DIR") .. "/lib/libhyprliquid.so");
+```
 
 #### Lua
 

@@ -66,4 +66,4 @@ target_link_libraries(hyprliquid PRIVATE
     ${SYSTEMD_LIBRARIES}
 )
 
-install(TARGETS hyprliquid LIBRARY DESTINATION /usr/lib)
+install(TARGETS hyprliquid LIBRARY DESTINATION lib)
