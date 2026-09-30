@@ -24,7 +24,7 @@ hyprliquid is a Hyprland plugin that adds Liquid Glass, Acrylic, Mica, and Aero-
 
 ### hyprpm
 
-Install `cmake`, `stb`, Wayland and systemd development files, and the Hyprland development files provided by your distribution. `hyprwayland-scanner` is optional: when it is unavailable, the build uses the pre-generated protocol sources included in the repository.
+Install `cmake`, `stb`, `systemd-libs` (or `libsystemd`), the Wayland development files, and the Hyprland development files provided by your distribution. `hyprwayland-scanner` is optional: when it is unavailable, the build uses the pre-generated protocol sources included in the repository.
 
 ```sh
 hyprpm update
@@ -149,7 +149,7 @@ Without Home Manager, load `<hyprliquid>/lib/libhyprliquid.so` yourself. See [Lo
 
 ### Manual build
 
-Install `cmake`, `stb`, Wayland and systemd development files, and the Hyprland development files provided by your distribution. `hyprwayland-scanner` is optional: when it is unavailable, the build uses the pre-generated protocol sources included in the repository.
+Install `cmake`, `stb`, `systemd-libs` (or `libsystemd`), the Wayland development files, and the Hyprland development files provided by your distribution. `hyprwayland-scanner` is optional: when it is unavailable, the build uses the pre-generated protocol sources included in the repository.
 
 Clone the repository, build a release module, and install it:
 
@@ -159,6 +159,8 @@ cd hyprliquid
 make release
 sudo make install
 ```
+> [!NOTE]
+> To drop the `libsystemd` dependency, build with `make release NO_SYSTEMD=ON` (or pass `-DNO_SYSTEMD=ON` to CMake directly) — the build also assumes it automatically when `libsystemd` is not found, and `color_scheme = follow_system` then degrades to `light`.
 
 Load it with:
 

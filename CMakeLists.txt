@@ -4,6 +4,8 @@ project(hyprliquid)
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(NO_SYSTEMD "Build without libsystemd" OFF)
+
 find_path(Stb_INCLUDE_DIR NAMES stb_image.h PATH_SUFFIXES stb)
 if (NOT Stb_INCLUDE_DIR)
     find_package(Stb REQUIRED)
@@ -11,7 +13,19 @@ endif()
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(HYPRLAND REQUIRED hyprland)
-pkg_check_modules(SYSTEMD REQUIRED systemd)
+
+set(HYPRLIQUID_NO_SYSTEMD FALSE)
+
+if (NO_SYSTEMD)
+    set(HYPRLIQUID_NO_SYSTEMD TRUE)
+    message(STATUS "NO_SYSTEMD is ON: building without libsystemd")
+else()
+    pkg_check_modules(LIBSYSTEMD libsystemd)
+    if (NOT LIBSYSTEMD_FOUND)
+        set(HYPRLIQUID_NO_SYSTEMD TRUE)
+        message(STATUS "libsystemd not found: building without it")
+    endif()
+endif()
 
 find_program(HYPRWAYLAND_SCANNER hyprwayland-scanner)
 if (HYPRWAYLAND_SCANNER)
@@ -63,7 +77,13 @@ target_include_directories(hyprliquid PRIVATE
 
 target_link_libraries(hyprliquid PRIVATE
     ${HYPRLAND_LIBRARIES}
-    ${SYSTEMD_LIBRARIES}
 )
+
+if (HYPRLIQUID_NO_SYSTEMD)
+    target_compile_definitions(hyprliquid PRIVATE HYPRLIQUID_NO_SYSTEMD)
+else()
+    target_include_directories(hyprliquid PRIVATE ${LIBSYSTEMD_INCLUDE_DIRS})
+    target_link_libraries(hyprliquid PRIVATE ${LIBSYSTEMD_LIBRARIES})
+endif()
 
 install(TARGETS hyprliquid LIBRARY DESTINATION lib)

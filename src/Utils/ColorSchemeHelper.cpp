@@ -6,6 +6,20 @@
 #include <limits>
 #include <string_view>
 
+#ifdef HYPRLIQUID_NO_SYSTEMD
+
+void ColorSchemeHelper::Init()
+{
+    m_Initialized = true;
+}
+
+void ColorSchemeHelper::Destroy()
+{
+    m_Initialized = false;
+}
+
+#else
+
 int ColorSchemeHelper::OnSettingsChanged(sd_bus_message* message, void* userdata, sd_bus_error* reterr_error)
 {
     using namespace std::string_view_literals;
@@ -205,6 +219,8 @@ void ColorSchemeHelper::Destroy()
 
     m_Initialized = false;
 }
+
+#endif
 
 int ColorSchemeHelper::GetColorScheme()
 {

@@ -24,7 +24,7 @@ hyprliquid 是一款 Hyprland 插件，可为窗口和 layer surface 添加 Liqu
 
 ### hyprpm
 
-请安装所用发行版提供的 `cmake`、`stb`、Wayland、systemd 以及 Hyprland 开发文件。`hyprwayland-scanner` 为可选依赖：若不可用，构建系统将使用仓库中预生成的协议源码。
+请安装所用发行版提供的 `cmake`、`stb`、`systemd-libs`（或`libsystemd`）、Wayland 开发文件，以及 Hyprland 开发文件。`hyprwayland-scanner` 为可选依赖：若不可用，构建系统将使用仓库中预生成的协议源码。
 
 ```sh
 hyprpm update
@@ -149,7 +149,7 @@ wayland.windowManager.hyprland.hyprliquid.enable = true;
 
 ### 手动构建
 
-请安装所用发行版提供的 `cmake`、`stb`、Wayland、systemd 以及 Hyprland 开发文件。`hyprwayland-scanner` 为可选依赖：若不可用，构建系统将使用仓库中预生成的协议源码。
+请安装所用发行版提供的 `cmake`、`stb`、`systemd-libs`（或`libsystemd`）、Wayland 开发文件，以及 Hyprland 开发文件。`hyprwayland-scanner` 为可选依赖：若不可用，构建系统将使用仓库中预生成的协议源码。
 
 克隆仓库，构建 Release 模块并安装：
 
@@ -159,6 +159,9 @@ cd hyprliquid
 make release
 sudo make install
 ```
+
+> [!NOTE]
+> 若要去掉 `libsystemd` 依赖，用 `make release NO_SYSTEMD=ON` 构建即可（也可直接向 CMake 传 `-DNO_SYSTEMD=ON`）；找不到 `libsystemd` 时也会自动如此。此时 `color_scheme = follow_system` 会退化为 `light`。
 
 使用以下命令加载：
 
