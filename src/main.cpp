@@ -108,11 +108,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         }
     }
 
-    return { "hyprliquid", "Liquid Glass, Acrylic, Mica, and Aero material effects for Hyprland.", "zaregototsukai", "0.2.0" };
+    return { "hyprliquid", "Liquid Glass, Acrylic, Mica, and Aero material effects for Hyprland.", "zaregototsukai", "0.2.1" };
 }
 
 APICALL EXPORT void PLUGIN_EXIT()
 {
+    g_pHyprRenderer->m_renderPass.clear();
     ColorSchemeHelper::Destroy();
     BackgroundManager::Destroy();
     BackgroundManager::DestroyEGL();

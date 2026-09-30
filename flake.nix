@@ -19,7 +19,7 @@
         in hyprland.stdenv.mkDerivation
         {
             pname = "hyprliquid";
-            version = "0.2.0";
+            version = "0.2.1";
             src = self;
             nativeBuildInputs = with pkgs;
             [
