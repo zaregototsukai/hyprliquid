@@ -2,7 +2,7 @@
 name = "hyprliquid"
 authors = ["zaregototsukai"]
 commit_pins = [
-    ["efb50993780079460b0cbed1363e2166a2de1d9f", "7a05ff967af5d2315108a3436d1596bc8586583c"]  # v0.56.2
+    ["efb50993780079460b0cbed1363e2166a2de1d9f", "c5442379542dc5e5c91cc385e3168172dd9d5ff9"]  # v0.56.2
 ]
 
 [hyprliquid]
