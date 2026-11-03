@@ -7,10 +7,11 @@
 #include "Render/Render.h"
 #include "Utils/Utils.hpp"
 #include "Utils/BackgroundManager.h"
+#include "Utils/EffectDamageManager.h"
 #include "Utils/ColorSchemeHelper.h"
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/plugins/HookSystem.hpp>
-#include <hyprland/src/desktop/view/Window.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/debug/log/Logger.hpp>
 #include <hyprland/src/desktop/view/LayerSurface.hpp>
 #include <hyprland/src/Compositor.hpp>
@@ -18,11 +19,12 @@
 #include <hyprland/src/managers/WelcomeManager.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
 
-const std::array<std::tuple<const char*, CFunctionHook**, void*>, 3> Hooks
+const std::array<std::tuple<const char*, CFunctionHook**, void*>, 4> Hooks
 {
     std::tuple {"IElementRenderer11drawSurface",                  &g_IElementRendererDrawSurfaceHook,                  (void*)HookIElementRendererDrawSurface},
     std::tuple {"CHyprOpenGLImpl21renderTextureInternal",         &g_CHyprOpenGLImplRenderTextureInternalHook,         (void*)HookCHyprOpenGLImplRenderTextureInternal},
-    std::tuple {"CHyprOpenGLImpl29renderTextureWithBlurInternal", &g_CHyprOpenGLImplRenderTextureWithBlurInternalHook, (void*)HookCHyprOpenGLImplRenderTextureWithBlurInternal}
+    std::tuple {"CHyprOpenGLImpl29renderTextureWithBlurInternal", &g_CHyprOpenGLImplRenderTextureWithBlurInternalHook, (void*)HookCHyprOpenGLImplRenderTextureWithBlurInternal},
+    std::tuple {"CSurfacePassElement12opaqueRegion",              &g_CSurfacePassElementOpaqueRegionHook,              (void*)HookCSurfacePassElementOpaqueRegion}
 };
 
 static CHyprSignalListener HyprlandReadyListener;
@@ -69,6 +71,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     ConfigManager::Init(handle);
     Shaders::Init();
     BackgroundManager::Init();
+    EffectDamageManager::Init();
 
     if (!std::filesystem::exists(g_pCompositor->m_instancePath + "/hyprland.lock") || !g_pWelcomeManager)
         HyprlandReadyListener = Event::bus()->m_events.ready.listen([handle] { OnHyprlandReady(handle); });
@@ -97,23 +100,24 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
     if (Config::mgr()->type() == Config::CONFIG_LUA)
     {
-        HyprlandAPI::addLuaFunction(handle, "hyprliquid", "placeholder", [](lua_State* L) { return 0; });
+        HyprlandAPI::addLuaFunction(handle, "hyprliquid", "placeholder", [](lua_State*) { return 0; });
 
-        auto matches = HyprlandAPI::findFunctionsByName(handle, "Desktop4View7CWindow8roundingEv");
+        auto matches = HyprlandAPI::findFunctionsByName(handle, "Desktop4View19CWindowPresentation8roundingEv");
         if (!matches.empty())
         {
             auto& match = matches.front();
-            g_CWindowRoundingHook = HyprlandAPI::createFunctionHook(handle, match.address, (void*)HookCWindowRounding);
-            g_CWindowRoundingHook->hook();
+            g_CWindowPresentationRoundingHook = HyprlandAPI::createFunctionHook(handle, match.address, (void*)HookCWindowPresentationRounding);
+            g_CWindowPresentationRoundingHook->hook();
         }
     }
 
-    return { "hyprliquid", "Liquid Glass, Acrylic, Mica, and Aero material effects for Hyprland.", "zaregototsukai", "0.2.1" };
+    return { "hyprliquid", "Liquid Glass, Acrylic, Mica, and Aero material effects for Hyprland.", "zaregototsukai", "0.3.0" };
 }
 
 APICALL EXPORT void PLUGIN_EXIT()
 {
-    g_pHyprRenderer->m_renderPass.clear();
+    EffectDamageManager::Destroy();
+    g_pHyprRenderer->context().m_pass.clear();
     ColorSchemeHelper::Destroy();
     BackgroundManager::Destroy();
     BackgroundManager::DestroyEGL();

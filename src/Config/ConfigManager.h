@@ -1,7 +1,7 @@
 #pragma once
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
-#include <hyprland/src/desktop/view/Window.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/desktop/rule/windowRule/WindowRuleApplicator.hpp>
 #include <hyprland/src/desktop/rule/layerRule/LayerRuleEffectContainer.hpp>
 #include <hyprland/src/event/EventBus.hpp>

@@ -5,7 +5,7 @@
 
 using namespace Shaders;
 
-void RenderLiquidGlass(IFramebuffer& fb, const SP<ITexture>& texture, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const SP<ITexture>& vdf_map, const SP<ClientContext>& client_context)
+void RenderLiquidGlass(Render::CRenderContext& ctx, IFramebuffer& fb, const SP<ITexture>& texture, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const SP<ITexture>& vdf_map, const SP<ClientContext>& client_context)
 {
     static auto CORNER_RADIUS    = RuleOrConfigValue<Config::INTEGER>(ConfigManager::ConfigType::CORNER_RADIUS);
     static auto Z_RADIUS         = RuleOrConfigValue<Config::INTEGER>(ConfigManager::ConfigType::Z_RADIUS);
@@ -19,7 +19,8 @@ void RenderLiquidGlass(IFramebuffer& fb, const SP<ITexture>& texture, const CBox
     static auto TINT_COLOR       = RuleOrConfigValue<CHyprColor>(ConfigManager::ConfigType::TINT_COLOR);
     static auto HIGHLIGHT_STYLE  = RuleOrConfigValue<Config::INTEGER>(ConfigManager::ConfigType::HIGHLIGHT_STYLE);
 
-    const float scale = g_pHyprRenderer->m_renderData.pMonitor->m_scale;
+    auto& render_data = ctx.m_data;
+    const float scale = render_data.pMonitor->m_scale;
     const float rounding_power = data.roundingPower;
 
     int corner_radius = CORNER_RADIUS[client_context];
@@ -77,7 +78,7 @@ void RenderLiquidGlass(IFramebuffer& fb, const SP<ITexture>& texture, const CBox
     else
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_HAS_VDF_MAP, false);
 
-    RenderShader(fb, texture, shader, data.damage);
+    RenderShader(ctx, fb, texture, shader, data.damage);
     if (vdf_map)
         vdf_map->unbind();
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <hyprland/src/helpers/Color.hpp>
 #include <GLES3/gl32.h>
+#include <cstddef>
 #include <functional>
 #include <utility>
 
@@ -60,6 +61,15 @@ struct Robber
     {
         auto ptr = GetFunc();
         return (obj->*ptr)(std::forward<Args>(args)...);
+    }
+};
+
+template <typename C, typename M, size_t OFFSET = 0>
+struct RefRobber
+{
+    static M& Get(C* obj)
+    {
+        return **reinterpret_cast<M* const*>(reinterpret_cast<std::byte*>(obj) + OFFSET);
     }
 };
 

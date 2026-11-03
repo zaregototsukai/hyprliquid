@@ -9,7 +9,7 @@
 
 using namespace Shaders;
 
-void RenderAero(IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture>& mask, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const SP<ClientContext>& client_context)
+void RenderAero(Render::CRenderContext& ctx, IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture>& mask, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const SP<ClientContext>& client_context)
 {
     using Render::GL::CGLFramebuffer;
 
@@ -24,9 +24,10 @@ void RenderAero(IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture
     if (data.currentLS)
         discard_alpha = data.currentLS->m_ruleApplicator->ignoreAlpha().valueOrDefault();
 
-    auto tex = EnsureBlur(data.a, const_cast<CRegion*>(data.damage), texture, 2, 2);
+    auto tex = EnsureBlur(ctx, data.a, const_cast<CRegion*>(data.damage), texture, 2, 2);
 
-    const float scale = g_pHyprRenderer->m_renderData.pMonitor->m_scale;
+    auto& render_data = ctx.m_data;
+    const float scale = render_data.pMonitor->m_scale;
 
     int corner_radius = CORNER_RADIUS[client_context];
     if (corner_radius < 0)
@@ -69,7 +70,7 @@ void RenderAero(IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture
     else
         shader->setUniformFloat2((eShaderUniform)CUSTOM_SHADER_TEXTURE_SCALE, 0.0, 0.0);
 
-    RenderShader(fb, tex, shader, data.damage);
+    RenderShader(ctx, fb, tex, shader, data.damage);
     if (reflection_map)
         reflection_map->unbind();
     if (mask)

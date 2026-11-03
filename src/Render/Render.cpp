@@ -6,22 +6,24 @@
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/render/Texture.hpp>
 #include <hyprland/src/render/gl/GLTexture.hpp>
+#include <hyprland/src/render/gl/blur/Kawase.hpp>
 #include <hyprland/src/render/ShaderLoader.hpp>
 #include <hyprland/src/helpers/cm/ColorManagement.hpp>
+#include <hyprutils/utils/ScopeGuard.hpp>
 #include <hyprgraphics/egl/Egl.hpp>
 
 using namespace Shaders;
 
 template struct Infiltrator<&Render::GL::CHyprOpenGLImpl::m_blend>;
-void RenderShader(IFramebuffer& fb, const SP<ITexture>& texture, const SP<CShader>& shader, const Hyprutils::Math::CRegion* damage, const Hyprutils::Math::Vector2D& viewport)
+void RenderShader(Render::CRenderContext& ctx, IFramebuffer& fb, const SP<ITexture>& texture, const SP<CShader>& shader, const Hyprutils::Math::CRegion* damage, const Hyprutils::Math::Vector2D& viewport)
 {
     const auto  BLENDBEFORE = Robber<Render::GL::CHyprOpenGLImpl, bool>::Get(Render::GL::g_pHyprOpenGL.get());
-    const auto& render_data = g_pHyprRenderer->m_renderData;
+    auto& render_data = ctx.m_data;
     const bool  custom_viewport = viewport.x > 0 && viewport.y > 0;
 
     const auto  TRANSFORM  = Math::wlTransformToHyprutils(Math::invertTransform(render_data.pMonitor->m_transform));
     CBox        MONITORBOX = {0, 0, render_data.pMonitor->m_transformedSize.x, render_data.pMonitor->m_transformedSize.y};
-    const auto& glMatrix = g_pHyprRenderer->projectBoxToTarget(MONITORBOX, TRANSFORM);
+    const auto& glMatrix = g_pHyprRenderer->projectBoxToTarget(ctx, MONITORBOX, TRANSFORM);
 
     if (!shader)
         return;
@@ -47,14 +49,14 @@ void RenderShader(IFramebuffer& fb, const SP<ITexture>& texture, const SP<CShade
     glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
     Render::GL::g_pHyprOpenGL->blend(false);
     if (damage && !damage->empty())
-        damage->forEachRect([](const auto& rect)
+        damage->forEachRect([&ctx](const auto& rect)
         {
-            Render::GL::g_pHyprOpenGL->scissor(&rect, g_pHyprRenderer->m_renderData.transformDamage);
+            Render::GL::g_pHyprOpenGL->scissor(ctx, &rect, ctx.m_data.transformDamage);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         });
     else
     {
-        Render::GL::g_pHyprOpenGL->scissor(nullptr);
+        Render::GL::g_pHyprOpenGL->scissor(ctx, nullptr);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
     Render::GL::g_pHyprOpenGL->blend(BLENDBEFORE);
@@ -68,7 +70,7 @@ void RenderShader(IFramebuffer& fb, const SP<ITexture>& texture, const SP<CShade
         glViewport(prev_viewport[0], prev_viewport[1], prev_viewport[2], prev_viewport[3]);
 }
 
-void DebugVDFMap(IFramebuffer& fb, const SP<ITexture>& vdf_map, const CBox& box)
+void DebugVDFMap(Render::CRenderContext& ctx, IFramebuffer& fb, const SP<ITexture>& vdf_map, const CBox& box)
 {
     if (!vdf_map)
         return;
@@ -81,11 +83,11 @@ void DebugVDFMap(IFramebuffer& fb, const SP<ITexture>& vdf_map, const CBox& box)
         shader->setUniformFloat2((eShaderUniform)CUSTOM_SHADER_TEXTURE_SCALE, size.x / box.width, size.y / box.height);
     else
         shader->setUniformFloat2((eShaderUniform)CUSTOM_SHADER_TEXTURE_SCALE, 0.0, 0.0);
-    RenderShader(fb, vdf_map, shader);
+    RenderShader(ctx, fb, vdf_map, shader);
     vdf_map->unbind();
 }
 
-SP<ITexture> GetOrUpdateVDFMap(const SP<ITexture>& texture, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const SP<ClientContext>& client_context)
+SP<ITexture> GetOrUpdateVDFMap(Render::CRenderContext& ctx, const SP<ITexture>& texture, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const SP<ClientContext>& client_context)
 {
     static auto VDF_MAP_MODE          = RuleOrDefaultValue<Config::INTEGER>(ConfigManager::ConfigType::VDF_MAP_MODE, 0);
     static auto VDF_MAP_UPDATE_POLICY = RuleOrConfigValue<Config::INTEGER>(ConfigManager::ConfigType::VDF_MAP_UPDATE_POLICY);
@@ -139,7 +141,7 @@ SP<ITexture> GetOrUpdateVDFMap(const SP<ITexture>& texture, const Render::GL::CH
     if (texture_size_w <= 0 || texture_size_h <= 0)
         return nullptr;
 
-    const auto& render_data = g_pHyprRenderer->m_renderData;
+    const auto& render_data = ctx.m_data;
 
     SP<ITexture> tex;
     const auto& monitor_size = render_data.pMonitor->m_pixelSize;
@@ -176,12 +178,12 @@ SP<ITexture> GetOrUpdateVDFMap(const SP<ITexture>& texture, const Render::GL::CH
     {
         shader = Render::GL::g_pHyprOpenGL->useShader(g_JumpFloodingInnerInitShader).lock();
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_CORNER_RADIUS, corner_radius);
-        RenderShader(framebuffers[1], tex, shader);
+        RenderShader(ctx, framebuffers[1], tex, shader);
     }
     else if (mode == 2)
     {
         shader = Render::GL::g_pHyprOpenGL->useShader(g_JumpFloodingOuterInitShader).lock();
-        RenderShader(framebuffers[1], tex, shader);
+        RenderShader(ctx, framebuffers[1], tex, shader);
 
         shader = Render::GL::g_pHyprOpenGL->useShader(g_JumpFloodingShader).lock();
         glUniform2i(shader->getUniformLocation(SHADER_FULL_SIZE), texture_size_w, texture_size_h);
@@ -192,13 +194,13 @@ SP<ITexture> GetOrUpdateVDFMap(const SP<ITexture>& texture, const Render::GL::CH
             if (stride < 1)
                 stride = 1;
             shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_JFA_STRIDE, (int)stride);
-            RenderShader(framebuffers[i % 2], framebuffers[(i + 1) % 2].getTexture(), shader);
+            RenderShader(ctx, framebuffers[i % 2], framebuffers[(i + 1) % 2].getTexture(), shader);
         }
         current_index = total_steps - 1;
 
         shader = Render::GL::g_pHyprOpenGL->useShader(g_JumpFloodingDistanceFilterShader).lock();
         shader->setUniformFloat((eShaderUniform)CUSTOM_SHADER_CORNER_RADIUS, (float)corner_radius);
-        RenderShader(framebuffers[(current_index + 1) % 2], framebuffers[current_index % 2].getTexture(), shader);
+        RenderShader(ctx, framebuffers[(current_index + 1) % 2], framebuffers[current_index % 2].getTexture(), shader);
         current_index++;
     }
     else
@@ -213,7 +215,7 @@ SP<ITexture> GetOrUpdateVDFMap(const SP<ITexture>& texture, const Render::GL::CH
         if (stride < 1)
             stride = 1;
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_JFA_STRIDE, (int)stride);
-        RenderShader(framebuffers[(current_index + i + 1) % 2], framebuffers[(current_index + i) % 2].getTexture(), shader);
+        RenderShader(ctx, framebuffers[(current_index + i + 1) % 2], framebuffers[(current_index + i) % 2].getTexture(), shader);
     }
     current_index += total_steps;
 
@@ -222,7 +224,7 @@ SP<ITexture> GetOrUpdateVDFMap(const SP<ITexture>& texture, const Render::GL::CH
     shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_MASK_TEXTURE, 1);
     glActiveTexture(GL_TEXTURE1);
     tex->bind();
-    RenderShader(framebuffers[2], framebuffers[current_index % 2].getTexture(), shader);
+    RenderShader(ctx, framebuffers[2], framebuffers[current_index % 2].getTexture(), shader);
 
     vdf_map = framebuffers[2].getTexture();
     if (vdf_map_update_policy == 0)
@@ -279,7 +281,7 @@ SP<ITexture> DownsampleTexture(const SP<ITexture>& texture, const Hyprutils::Mat
     return tex;
 }
 
-void RenderPassthrough(IFramebuffer& fb, const SP<ITexture>& texture, const Hyprutils::Math::Vector2D& viewport)
+void RenderPassthrough(Render::CRenderContext& ctx, IFramebuffer& fb, const SP<ITexture>& texture, const Hyprutils::Math::Vector2D& viewport)
 {
     if (!texture)
         return;
@@ -290,13 +292,13 @@ void RenderPassthrough(IFramebuffer& fb, const SP<ITexture>& texture, const Hypr
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fb);
 
     auto shader = Render::GL::g_pHyprOpenGL->useShader(Render::GL::g_pHyprOpenGL->getShaderVariant(Render::SH_FRAG_PASSTHRURGBA)).lock();
-    RenderShader(fb, texture, shader, nullptr, viewport);
+    RenderShader(ctx, fb, texture, shader, nullptr, viewport);
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fb);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fb);
 }
 
-SP<ITexture> ResizeTexture(const SP<ITexture>& texture, const Hyprutils::Math::Vector2D& size)
+SP<ITexture> ResizeTexture(Render::CRenderContext& ctx, const SP<ITexture>& texture, const Hyprutils::Math::Vector2D& size)
 {
     if (!texture)
         return nullptr;
@@ -306,14 +308,14 @@ SP<ITexture> ResizeTexture(const SP<ITexture>& texture, const Hyprutils::Math::V
 
     Render::GL::CGLFramebuffer fb;
     fb.alloc(size.x, size.y);
-    RenderPassthrough(fb, texture, size);
+    RenderPassthrough(ctx, fb, texture, size);
 
     return fb.getTexture();
 }
 
-SP<Render::ITexture> CopyTexture(const SP<ITexture>& texture)
+SP<Render::ITexture> CopyTexture(Render::CRenderContext& ctx, const SP<ITexture>& texture)
 {
-    return ResizeTexture(texture, texture->m_size);
+    return ResizeTexture(ctx, texture, texture->m_size);
 }
 
 GLuint GetTextureChecksum(const SP<ITexture>& texture, SP<AsyncSSBOReadback> readback)
@@ -381,255 +383,62 @@ bool IsTextureBlack(const SP<ITexture>& texture, SP<AsyncSSBOReadback> readback)
     return output == 0;
 }
 
-struct Tag_CHyprOpenGLImpl_PassCMUniforms
+SP<IFramebuffer> BlurTextureWithDamage(Render::CRenderContext& ctx, const float a, CRegion* originalDamage, const Config::INTEGER blur_size, const Config::INTEGER blur_passes, const SP<IFramebuffer>& source)
 {
-    using type = void(Render::GL::CHyprOpenGLImpl::*)(WP<CShader>, const NColorManagement::PImageDescription, const NColorManagement::PImageDescription, bool, float, int);
-};
-template struct InfiltratorAlt<Tag_CHyprOpenGLImpl_PassCMUniforms, static_cast<void(Render::GL::CHyprOpenGLImpl::*)(WP<CShader>, const NColorManagement::PImageDescription, const NColorManagement::PImageDescription, bool, float, int)>(&Render::GL::CHyprOpenGLImpl::passCMUniforms)>;
+    using Hyprutils::Utils::CScopeGuard;
 
-struct Tag_CHyprOpenGLImpl_CMSupported
-{
-    using type = bool Render::GL::CHyprOpenGLImpl::*;
-};
-template struct InfiltratorAlt<Tag_CHyprOpenGLImpl_CMSupported, &Render::GL::CHyprOpenGLImpl::m_cmSupported>;
+    auto monitor = ctx.m_data.pMonitor;
+    if (!monitor)
+        return nullptr;
 
-SP<IFramebuffer> BlurTextureWithDamage(const float a, CRegion* originalDamage, SP<ITexture> texture, const Config::INTEGER blur_size, const Config::INTEGER blur_passes)
-{
-    using namespace Render;
-    using namespace NColorManagement;
-    using Render::GL::CGLFramebuffer;
-    using Render::GL::g_pHyprOpenGL;
+    static auto PBLURSIZE   = CConfigValue<Config::INTEGER>("decoration:blur:size");
+    static auto PBLURPASSES = CConfigValue<Config::INTEGER>("decoration:blur:passes");
 
-    TRACY_GPU_ZONE("RenderBlurFramebufferWithDamage");
-    auto&      m_renderData = g_pHyprRenderer->m_renderData;
+    const auto config_size   = *PBLURSIZE;
+    const auto config_passes = *PBLURPASSES;
 
-    auto& m_cmSupported = RobberAlt<Tag_CHyprOpenGLImpl_CMSupported>::Get(g_pHyprOpenGL.get());
-    const auto BLENDBEFORE = Robber<Render::GL::CHyprOpenGLImpl, bool>::Get(g_pHyprOpenGL.get());
-    g_pHyprOpenGL->blend(false);
-    g_pHyprOpenGL->setCapStatus(GL_STENCIL_TEST, false);
-
-    // get transforms for the full monitor
-    const auto  TRANSFORM  = Math::wlTransformToHyprutils(Math::invertTransform(m_renderData.pMonitor->m_transform));
-    CBox        MONITORBOX = {0, 0, m_renderData.pMonitor->m_transformedSize.x, m_renderData.pMonitor->m_transformedSize.y};
-
-    const auto& glMatrix = g_pHyprRenderer->projectBoxToTarget(MONITORBOX, TRANSFORM);
-
-    // get the config settings
-    const  auto PBLURSIZE             = &blur_size;
-    const  auto PBLURPASSES           = &blur_passes;
-    static auto PBLURVIBRANCY         = CConfigValue<Config::FLOAT>("decoration:blur:vibrancy");
-    static auto PBLURVIBRANCYDARKNESS = CConfigValue<Config::FLOAT>("decoration:blur:vibrancy_darkness");
-
-    const auto  BLUR_PASSES = std::clamp(*PBLURPASSES, sc<int64_t>(1), sc<int64_t>(8));
-
-    // prep damage
-    CRegion damage{*originalDamage};
-    damage.transform(Math::wlTransformToHyprutils(Math::invertTransform(m_renderData.pMonitor->m_transform)), m_renderData.pMonitor->m_transformedSize.x,
-                     m_renderData.pMonitor->m_transformedSize.y);
-    damage.expand(std::clamp(*PBLURSIZE, sc<int64_t>(1), sc<int64_t>(40)) * pow(2, BLUR_PASSES));
-
-    // helper
-    const auto PMIRRORFB     = g_pHyprRenderer->m_renderData.pMonitor->resources()->getUnusedWorkBuffer();
-    const auto PMIRRORSWAPFB = g_pHyprRenderer->m_renderData.pMonitor->resources()->getUnusedWorkBuffer();
-
-    auto       currentRenderToFB = PMIRRORFB;
-
-    // Begin with base color adjustments - global brightness and contrast
-    // TODO: make this a part of the first pass maybe to save on a drawcall?
+    CScopeGuard guard
     {
-        static auto PBLURCONTRAST   = CConfigValue<Config::FLOAT>("decoration:blur:contrast");
-        static auto PBLURBRIGHTNESS = CConfigValue<Config::FLOAT>("decoration:blur:brightness");
-        static auto PBLEND          = CConfigValue<Config::INTEGER>("render:use_shader_blur_blend");
-
-        PMIRRORSWAPFB->bind();
-        GLFB(PMIRRORSWAPFB)->clearAfterInvalidation();
-
-        glActiveTexture(GL_TEXTURE0);
-
-        auto currentTex = texture;
-
-        currentTex->bind();
-        currentTex->setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-        WP<CShader> shader;
-
-        // From FB to sRGB
-        const bool skipCM = !m_cmSupported || !g_pHyprRenderer->workBufferImageDescription()->needsCM(getDefaultImageDescription());
-        if (!skipCM) {
-            shader = g_pHyprOpenGL->useShader(g_pHyprOpenGL->getShaderVariant(SH_FRAG_BLURPREPARE, SH_FEAT_CM));
-            RobberAlt<Tag_CHyprOpenGLImpl_PassCMUniforms>::Call(g_pHyprOpenGL.get(), shader, getDefaultImageDescription(), g_pHyprRenderer->workBufferImageDescription(), false, -1.0f, -1);
-            shader->setUniformFloat(SHADER_SDR_SATURATION,
-                                    m_renderData.pMonitor->m_sdrSaturation > 0 &&
-                                            g_pHyprRenderer->workBufferImageDescription()->value().transferFunction == NColorManagement::CM_TRANSFER_FUNCTION_ST2084_PQ ?
-                                        m_renderData.pMonitor->m_sdrSaturation :
-                                        1.0f);
-            shader->setUniformFloat(SHADER_SDR_BRIGHTNESS,
-                                    m_renderData.pMonitor->m_sdrBrightness > 0 &&
-                                            g_pHyprRenderer->workBufferImageDescription()->value().transferFunction == NColorManagement::CM_TRANSFER_FUNCTION_ST2084_PQ ?
-                                        m_renderData.pMonitor->m_sdrBrightness :
-                                        1.0f);
-        } else
-            shader = g_pHyprOpenGL->useShader(g_pHyprOpenGL->getShaderVariant(SH_FRAG_BLURPREPARE));
-
-        const auto& glMatrix = g_pHyprRenderer->projectBoxToTarget(MONITORBOX, *PBLEND ? HYPRUTILS_TRANSFORM_NORMAL : TRANSFORM);
-        shader->setUniformMatrix3fv(SHADER_PROJ, 1, GL_TRUE, glMatrix.getMatrix());
-        shader->setUniformFloat(SHADER_CONTRAST, *PBLURCONTRAST);
-        shader->setUniformFloat(SHADER_BRIGHTNESS, *PBLURBRIGHTNESS);
-        shader->setUniformInt(SHADER_TEX, 0);
-
-        glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
-
-        if (!damage.empty()) {
-            damage.forEachRect([](const auto& RECT) {
-                g_pHyprOpenGL->scissor(&RECT, false /* this region is already transformed */);
-                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-            });
+        [&config_size, &config_passes]
+        {
+            *PBLURSIZE.ptr()   = config_size;
+            *PBLURPASSES.ptr() = config_passes;
         }
-
-        glBindVertexArray(0);
-        currentRenderToFB = PMIRRORSWAPFB;
-    }
-
-    // declare the draw func
-    auto drawPass = [&](WP<CShader> shader, ePreparedFragmentShader frag, CRegion* pDamage) {
-        if (currentRenderToFB == PMIRRORFB)
-            PMIRRORSWAPFB->bind();
-        else
-            PMIRRORFB->bind();
-
-        glActiveTexture(GL_TEXTURE0);
-
-        auto currentTex = currentRenderToFB->getTexture();
-
-        currentTex->bind();
-
-        currentTex->setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-        // prep two shaders
-        shader->setUniformMatrix3fv(SHADER_PROJ, 1, GL_TRUE, glMatrix.getMatrix());
-        shader->setUniformFloat(SHADER_RADIUS, *PBLURSIZE * a); // this makes the blursize change with a
-        if (frag == SH_FRAG_BLUR1) {
-            shader->setUniformFloat2(SHADER_HALFPIXEL, 0.5f / (m_renderData.pMonitor->m_pixelSize.x / 2.f), 0.5f / (m_renderData.pMonitor->m_pixelSize.y / 2.f));
-            shader->setUniformInt(SHADER_PASSES, BLUR_PASSES);
-            shader->setUniformFloat(SHADER_VIBRANCY, *PBLURVIBRANCY);
-            shader->setUniformFloat(SHADER_VIBRANCY_DARKNESS, *PBLURVIBRANCYDARKNESS);
-        } else
-            shader->setUniformFloat2(SHADER_HALFPIXEL, 0.5f / (m_renderData.pMonitor->m_pixelSize.x * 2.f), 0.5f / (m_renderData.pMonitor->m_pixelSize.y * 2.f));
-        shader->setUniformInt(SHADER_TEX, 0);
-
-        glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
-
-        if (!pDamage->empty()) {
-            pDamage->forEachRect([](const auto& RECT) {
-                g_pHyprOpenGL->scissor(&RECT, false /* this region is already transformed */);
-                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-            });
-        }
-
-        glBindVertexArray(0);
-
-        if (currentRenderToFB != PMIRRORFB)
-            currentRenderToFB = PMIRRORFB;
-        else
-            currentRenderToFB = PMIRRORSWAPFB;
     };
 
-    // draw the things.
-    // first draw is swap -> mirr
-    PMIRRORFB->bind();
-    GLFB(PMIRRORFB)->clearAfterInvalidation();
-    PMIRRORSWAPFB->getTexture()->bind();
+    *PBLURSIZE.ptr()   = std::clamp<Config::INTEGER>(blur_size, 1, 40);
+    *PBLURPASSES.ptr() = std::clamp<Config::INTEGER>(blur_passes, 1, 8);
 
-    // damage region will be scaled, make a temp
-    CRegion tempDamage{damage};
+    CRegion damage {*originalDamage};
+    auto transform = Math::invertTransform(ctx.m_data.pMonitor->m_transform);
+    damage.transform(Math::wlTransformToHyprutils(transform), monitor->m_transformedSize.x, monitor->m_transformedSize.y);
 
-    // and draw
-    auto shader = g_pHyprOpenGL->useShader(g_pHyprOpenGL->getShaderVariant(SH_FRAG_BLUR1));
-    for (auto i = 1; i <= BLUR_PASSES; ++i) {
-        tempDamage = damage.copy().scale(1.f / (1 << i));
-        drawPass(shader, SH_FRAG_BLUR1, &tempDamage); // down
-    }
+    static auto kawase_blur_provider = Render::GL::CDualKawaseBlurProvider(*Render::GL::g_pHyprOpenGL);
 
-    shader = g_pHyprOpenGL->useShader(g_pHyprOpenGL->getShaderVariant(SH_FRAG_BLUR2));
-    for (auto i = BLUR_PASSES - 1; i >= 0; --i) {
-        tempDamage = damage.copy().scale(1.f / (1 << i)); // when upsampling we make the region twice as big
-        drawPass(shader, SH_FRAG_BLUR2, &tempDamage);     // up
-    }
-
-    // finalize the image
+    if (!source)
     {
-        static auto PBLURNOISE      = CConfigValue<Config::FLOAT>("decoration:blur:noise");
-        static auto PBLURBRIGHTNESS = CConfigValue<Config::FLOAT>("decoration:blur:brightness");
+        const auto render_target = ctx.m_data.currentFB;
+        const auto blur_source   = !ctx.m_backdropCaptures.empty() && ctx.m_backdropCaptures.back().framebuffer ? ctx.m_backdropCaptures.back().framebuffer : render_target;
+        if (!blur_source || !blur_source->getTexture())
+            return nullptr;
 
-        if (currentRenderToFB == PMIRRORFB)
-            PMIRRORSWAPFB->bind();
-        else
-            PMIRRORFB->bind();
-
-        glActiveTexture(GL_TEXTURE0);
-
-        auto currentTex = currentRenderToFB->getTexture();
-
-        currentTex->bind();
-
-        currentTex->setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-        // From FB to sRGB
-        const bool skipCM = !m_cmSupported || !g_pHyprRenderer->workBufferImageDescription()->needsCM(getDefaultImageDescription());
-        if (!skipCM) {
-            shader = g_pHyprOpenGL->useShader(g_pHyprOpenGL->getShaderVariant(SH_FRAG_BLURFINISH, SH_FEAT_CM));
-            RobberAlt<Tag_CHyprOpenGLImpl_PassCMUniforms>::Call(g_pHyprOpenGL.get(), shader, getDefaultImageDescription(), g_pHyprRenderer->workBufferImageDescription(), false, -1.0f, -1);
-            shader->setUniformFloat(SHADER_SDR_SATURATION,
-                                    m_renderData.pMonitor->m_sdrSaturation > 0 &&
-                                            g_pHyprRenderer->workBufferImageDescription()->value().transferFunction == NColorManagement::CM_TRANSFER_FUNCTION_ST2084_PQ ?
-                                        m_renderData.pMonitor->m_sdrSaturation :
-                                        1.0f);
-            shader->setUniformFloat(SHADER_SDR_BRIGHTNESS,
-                                    m_renderData.pMonitor->m_sdrBrightness > 0 &&
-                                            g_pHyprRenderer->workBufferImageDescription()->value().transferFunction == NColorManagement::CM_TRANSFER_FUNCTION_ST2084_PQ ?
-                                        m_renderData.pMonitor->m_sdrBrightness :
-                                        1.0f);
-        } else
-            shader = g_pHyprOpenGL->useShader(g_pHyprOpenGL->getShaderVariant(SH_FRAG_BLURFINISH));
-
-        shader->setUniformMatrix3fv(SHADER_PROJ, 1, GL_TRUE, glMatrix.getMatrix());
-        shader->setUniformFloat(SHADER_NOISE, *PBLURNOISE);
-        shader->setUniformFloat(SHADER_BRIGHTNESS, *PBLURBRIGHTNESS);
-
-        shader->setUniformInt(SHADER_TEX, 0);
-
-        glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
-
-        if (!damage.empty()) {
-            damage.forEachRect([](const auto& RECT) {
-                g_pHyprOpenGL->scissor(&RECT, false /* this region is already transformed */);
-                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-            });
-        }
-
-        glBindVertexArray(0);
-
-        if (currentRenderToFB != PMIRRORFB)
-            currentRenderToFB = PMIRRORFB;
-        else
-            currentRenderToFB = PMIRRORSWAPFB;
+        auto render_guard = g_pHyprRenderer->bindTempFB(ctx, render_target);
+        return kawase_blur_provider.blur(ctx, blur_source, a, damage);
     }
 
-    // finish
-    PMIRRORFB->getTexture()->unbind();
-
-    g_pHyprOpenGL->blend(BLENDBEFORE);
-
-    return currentRenderToFB;
+    return kawase_blur_provider.blur(ctx, source, a, damage);
 }
 
-SP<ITexture> EnsureBlur(const float a, CRegion *originalDamage, SP<ITexture> texture, const Config::INTEGER blur_size, const Config::INTEGER blur_passes)
+SP<ITexture> EnsureBlur(Render::CRenderContext& ctx, const float a, CRegion *originalDamage, SP<ITexture> texture, const Config::INTEGER blur_size, const Config::INTEGER blur_passes)
 {
     static auto PBLURSIZE   = CConfigValue<Config::INTEGER>("decoration:blur:size");
     static auto PBLURPASSES = CConfigValue<Config::INTEGER>("decoration:blur:passes");
 
     if (blur_size != *PBLURSIZE || blur_passes != *PBLURPASSES || !texture)
-        return BlurTextureWithDamage(a, originalDamage, g_pHyprRenderer->m_renderData.currentFB->getTexture(), blur_size, blur_passes)->getTexture();
+    {
+        const auto blurred = BlurTextureWithDamage(ctx, a, originalDamage, blur_size, blur_passes);
+        return blurred ? blurred->getTexture() : nullptr;
+    }
     else
         return texture;
 }

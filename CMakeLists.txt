@@ -63,6 +63,7 @@ add_library(hyprliquid MODULE
     src/Config/ConfigManager.cpp
     src/Utils/Utils.hpp src/Utils/Utils.cpp
     src/Utils/BackgroundManager.cpp
+    src/Utils/EffectDamageManager.cpp
     src/Utils/ColorSchemeHelper.cpp
     src/main.cpp
 )

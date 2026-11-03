@@ -49,15 +49,21 @@ void BackgroundManager::Init()
         CreateBlurredBackground(monitor, texture);
     });
 
-    m_RenderStageListener = Event::bus()->m_events.render.stage.listen([](eRenderStage stage)
+    m_RenderStageListener = Event::bus()->m_events.render.stage.listen([](Event::SRenderStageEvent event)
     {
+        if (!event.context.has_value())
+            return;
+        
+        const auto& stage = event.stage;
+        auto& ctx = event.context->get();
+        
         if (stage != RENDER_POST_WALLPAPER)
             return;
 
         if (SharingBackground)
-            g_pHyprRenderer->m_renderPass.add(makeUnique<CBackgroundSharePassElement>());
+            g_pHyprRenderer->addPassElement(ctx, makeUnique<CBackgroundSharePassElement>());
 
-        auto monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
+        auto monitor = ctx.m_data.pMonitor.lock();
         if (!monitor->m_layerSurfaceLayers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND].empty())
             return;
 
@@ -109,10 +115,16 @@ void BackgroundManager::CreateBlurredBackground(PHLMONITOR monitor, SP<Render::I
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
 
+    auto&   ctx = g_pHyprRenderer->context();
     CRegion damage {0, 0, monitor->m_pixelSize.x, monitor->m_pixelSize.y};
-    auto tex = texture->m_size != monitor->m_pixelSize ? ResizeTexture(texture, monitor->m_pixelSize) : texture;
-    auto blur_texture = BlurTextureWithDamage(1.0, &damage, tex, 8, 5)->getTexture();
-    monitor_context->SetBlurredBackground(CopyTexture(blur_texture));
+
+    auto source = makeShared<Render::GL::CGLFramebuffer>();
+    if (!source->alloc(monitor->m_pixelSize.x, monitor->m_pixelSize.y))
+        return;
+    RenderPassthrough(ctx, *source, texture, monitor->m_pixelSize);
+
+    const auto blurred = BlurTextureWithDamage(ctx, 1.0, &damage, 8, 5, source);
+    monitor_context->SetBlurredBackground(blurred ? CopyTexture(ctx, blurred->getTexture()) : nullptr);
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
@@ -167,7 +179,7 @@ void BackgroundManager::ShareBackground(PHLMONITOR monitor, SP<Render::ITexture>
         monitor_context->SharedBackgroundFramebuffer = fb;
     }
 
-    RenderPassthrough(*monitor_context->SharedBackgroundFramebuffer, texture, size);
+    RenderPassthrough(g_pHyprRenderer->context(), *monitor_context->SharedBackgroundFramebuffer, texture, size);
     monitor_context->SetSharedBackground(monitor_context->SharedBackgroundFramebuffer->getTexture());
 
     for (auto iter = EGLClients.begin(); iter != EGLClients.end(); )
@@ -279,7 +291,7 @@ void BackgroundManager::CreateDefaultAeroReflectionMap()
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
     auto shader = Render::GL::g_pHyprOpenGL->useShader(Shaders::g_AeroReflectionMapShader).lock();
-    RenderShader(fb, nullptr, shader, nullptr, size);
+    RenderShader(g_pHyprRenderer->context(), fb, nullptr, shader, nullptr, size);
 
     glColorMask(prev_color_mask[0], prev_color_mask[1], prev_color_mask[2], prev_color_mask[3]);
     glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);

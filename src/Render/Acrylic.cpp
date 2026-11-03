@@ -7,7 +7,7 @@
 
 using namespace Shaders;
 
-void RenderAcrylic(IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture>& mask, const CBox &box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const bool thin, const SP<ClientContext>& client_context)
+void RenderAcrylic(Render::CRenderContext& ctx, IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture>& mask, const CBox &box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data, const bool thin, const SP<ClientContext>& client_context)
 {
     static auto BRIGHTNESS   = RuleOrConfigValue<Config::FLOAT>(ConfigManager::ConfigType::BRIGHTNESS);
     static auto TINT_COLOR   = RuleOrConfigValue<CHyprColor>(ConfigManager::ConfigType::TINT_COLOR);
@@ -29,8 +29,9 @@ void RenderAcrylic(IFramebuffer& fb, const SP<ITexture>& texture, const SP<IText
     if (data.currentLS)
         discard_alpha = data.currentLS->m_ruleApplicator->ignoreAlpha().valueOrDefault();
 
-    auto tex = EnsureBlur(data.a, const_cast<CRegion*>(data.damage), texture, 4, 4);
-    const float scale = g_pHyprRenderer->m_renderData.pMonitor->m_scale;
+    auto tex = EnsureBlur(ctx, data.a, const_cast<CRegion*>(data.damage), texture, 4, 4);
+    auto& render_data = ctx.m_data;
+    const float scale = render_data.pMonitor->m_scale;
 
     auto  tint_color = TINT_COLOR[client_context];
     float brightness = BRIGHTNESS[client_context];
@@ -72,7 +73,7 @@ void RenderAcrylic(IFramebuffer& fb, const SP<ITexture>& texture, const SP<IText
     shader->setUniformFloat4((eShaderUniform)CUSTOM_SHADER_LUMINOSITY_COLOR, luminosity_color.r, luminosity_color.g, luminosity_color.b, luminosity_color.a);
     shader->setUniformFloat4(SHADER_TINT, tint_color.r, tint_color.g, tint_color.b, tint_color.a);
 
-    RenderShader(fb, tex, shader, data.damage);
+    RenderShader(ctx, fb, tex, shader, data.damage);
     if (mask)
         mask->unbind();
 
